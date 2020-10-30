@@ -70,13 +70,12 @@ RUN git clone -b $QAT_ENGINE_VERSION https://github.com/intel/QAT_Engine && \
     make && \
     make install
 
-WORKDIR /
-
-COPY . .
-
 ARG BAZEL_EXTRA_BUILD_ARGS="-c opt"
 
-RUN bazel build $BAZEL_EXTRA_BUILD_ARGS //:envoy
+COPY . /envoy
+
+RUN cd /envoy && \
+    CC=clang CXX=clang++ bazel build $BAZEL_EXTRA_BUILD_ARGS //:envoy
 
 FROM clearlinux:base
 
