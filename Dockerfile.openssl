@@ -77,7 +77,8 @@ ARG BAZEL_EXTRA_BUILD_ARGS="-c opt"
 COPY . /envoy
 
 RUN cd /envoy && \
-    CC=clang CXX=clang++ bazel build $BAZEL_EXTRA_BUILD_ARGS //:envoy
+    mkdir -p /build && \
+    CC=clang CXX=clang++ bazel --output_user_root=/build/ build $BAZEL_EXTRA_BUILD_ARGS //:envoy
 
 FROM clearlinux:base
 
