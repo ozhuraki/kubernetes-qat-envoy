@@ -39,6 +39,7 @@ RUN if [[ "${BASE_IMAGE}" =~ clearlinux ]]; then \
             virtualenv \
             git \
             gperf \
+            nasm \
             libudev-dev \
             libssl-dev \
             curl \
@@ -62,6 +63,9 @@ RUN curl -fsSL --output /usr/bin/bazel https://github.com/bazelbuild/bazelisk/re
 FROM build-deps as builder
 
 ARG QAT_DRIVER_RELEASE="qat1.7.l.4.10.0-00014"
+ARG QAT_ENGINE_VERSION="v0.5.46"
+ARG IPSEC_MB_VERSION="v0.54"
+ARG IPP_CRYPTO_VERSION="ippcp_2020u2"
 
 RUN mkdir QAT_Lib && \
     cd QAT_Lib && \
@@ -91,6 +95,7 @@ RUN git clone -b $IPSEC_MB_VERSION https://github.com/intel/intel-ipsec-mb && \
     make install LIB_INSTALL_DIR=/usr/lib64
 
 RUN git clone -b $QAT_ENGINE_VERSION https://github.com/intel/QAT_Engine && \
+    mkdir -p /usr/lib64 && \
     cd /QAT_Engine && \
     ./autogen.sh && \
     ./configure \
@@ -114,35 +119,3 @@ RUN git clone -b $QAT_ENGINE_VERSION https://github.com/intel/QAT_Engine && \
         --enable-openssl_install_build_arch_path && \
     make && \
     make install
-
-FROM builder AS envoy-builder
-
-ARG BAZEL_EXTRA_BUILD_ARGS="-c opt"
-
-COPY . /envoy
-
-RUN cd /envoy && \
-    mkdir -p /build && \
-    CC=clang CXX=clang++ bazel --output_user_root=/build/ build $BAZEL_EXTRA_BUILD_ARGS //:envoy
-
-FROM clearlinux:base
-
-COPY --from=builder /usr/lib64/libstdc++.so.6 /usr/lib64
-COPY --from=builder /usr/lib/libqat_s.so /usr/lib64
-COPY --from=builder /usr/lib/libusdm_drv_s.so /usr/lib64
-COPY --from=builder /usr/lib64/libIPSec_MB.so.0 /usr/lib64/
-COPY --from=builder /usr/lib64/lib/libqat.so /usr/lib64
-COPY --from=builder /usr/bin/adf_ctl /usr/bin
-COPY --from=builder /usr/bin/vfy_ifma_cp_rsa_mb /usr/bin
-COPY --from=builder /usr/bin/vfy_ifma_rsa_mb /usr/bin
-COPY --from=builder /usr/lib64/engines-1.1/avx512.so /usr/lib64/engines-1.1/avx512.so
-COPY --from=builder /usr/lib64/engines-1.1/qat.so /usr/lib64/engines-1.1
-COPY --from=envoy-builder /envoy/bazel-bin/envoy /envoy-static
-COPY --from=builder /QAT_Lib/LICENSE.GPL /usr/share/package-licenses/libqat/LICENSE.GPL
-COPY --from=builder /QAT_Engine/LICENSE /usr/share/package-licenses/QAT_Engine/LICENSE
-COPY --from=builder /ipp-crypto/LICENSE /usr/share/package-licenses/ipp-crypto/LICENSE
-COPY --from=builder /intel-ipsec-mb/LICENSE /usr/share/package-licenses/intel-ipsec-mb/LICENSE
-
-STOPSIGNAL SIGTERM
-
-ENTRYPOINT ["/envoy-static", "-c", "/etc/envoy/config/envoy-conf.yaml", "--cpuset-threads"]
