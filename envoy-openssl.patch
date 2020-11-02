@@ -1,0 +1,21 @@
+diff --git a/openssl_host_shared.BUILD b/openssl_host_shared.BUILD
+index a83076f..5d4cdcc 100644
+--- a/openssl_host_shared.BUILD
++++ b/openssl_host_shared.BUILD
+@@ -2,12 +2,12 @@ licenses(["notice"])  # Apache 2
+ 
+ cc_library(
+     name = "host-ssl-1-1",
+-    srcs = [
+-        "libcrypto.so.1.1",
+-        "libssl.so.1.1",
+-    ],
+     linkstatic = False,
+     visibility = ["//visibility:public"],
++    linkopts = [
++        "-lcrypto",
++        "-lssl",
++    ],
+ )
+ 
+ alias(

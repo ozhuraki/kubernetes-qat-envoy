@@ -1,22 +1,67 @@
-FROM clearlinux:base as builder
 
-ARG QAT_DRIVER_RELEASE="qat1.7.l.4.11.0-00001"
-ARG QAT_ENGINE_VERSION="v0.5.46"
-ARG IPSEC_MB_VERSION="v0.55"
-ARG IPP_CRYPTO_VERSION="ippcp_2020u2"
+ARG BASE_IMAGE=clearlinux:base
 
-RUN swupd update && \
-    swupd bundle-add --skip-diskspace-check --no-boot-update \
-        os-core-dev \
-        c-basic \
-        llvm10 \
-        curl \
-        git \
-        python3-basic \
-        devpkg-systemd \
-        devpkg-openssl && \
-    curl -fsSL --output /usr/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.6.1/bazelisk-linux-amd64 && \
+FROM ${BASE_IMAGE} as build-deps
+
+# Retrieve $BASE_IMAGE again as FROM clears preceeding ARGs
+
+ARG BASE_IMAGE
+
+ARG LLVM_RELEASE=11.0.0
+
+SHELL [ "/bin/bash", "-c" ]
+
+RUN if [[ "${BASE_IMAGE}" =~ clearlinux ]]; then \
+        swupd update && \
+        swupd bundle-add --skip-diskspace-check --no-boot-update \
+            os-core-dev \
+            c-basic \
+            python3-basic \
+            git \
+            curl \
+            llvm10 \
+            devpkg-systemd \
+            devpkg-openssl \
+        ; \
+    elif [[ "${BASE_IMAGE}" =~ (ubuntu:(bionic|focal)|debian:stable) ]]; then \
+        apt-get update && \
+        DEBIAN_FRONTEND=noninteractive apt-get install \
+                                           -y --no-install-recommends \
+            libtinfo5 \
+            autoconf \
+            automake \
+            libtool \
+            pkg-config \
+            make \
+            cmake \
+            ninja-build \
+            python3-pip \
+            virtualenv \
+            git \
+            gperf \
+            libudev-dev \
+            libssl-dev \
+            curl \
+            ca-certificates \
+            xz-utils && \
+        # without '--no-install-recommends' default g++ pulls libstdc++-*-dev
+        apt-get install -y g++ && \
+        update-alternatives --install /usr/bin/python python /usr/bin/python3 0 && \
+        curl -fsSL https://github.com/llvm/llvm-project/releases/download/llvmorg-${LLVM_RELEASE}/clang+llvm-${LLVM_RELEASE}-x86_64-linux-gnu-ubuntu-16.04.tar.xz | tar x --xz && \
+        mv ./clang+llvm-${LLVM_RELEASE}* /opt/llvm \
+        ; \
+    else \
+        exit 1; \
+    fi
+
+ENV PATH=/opt/llvm/bin:$PATH
+
+RUN curl -fsSL --output /usr/bin/bazel https://github.com/bazelbuild/bazelisk/releases/download/v1.6.1/bazelisk-linux-amd64 && \
     chmod +x /usr/bin/bazel
+
+FROM build-deps as builder
+
+ARG QAT_DRIVER_RELEASE="qat1.7.l.4.10.0-00014"
 
 RUN mkdir QAT_Lib && \
     cd QAT_Lib && \

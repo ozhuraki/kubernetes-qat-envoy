@@ -7,7 +7,8 @@ mkdir -p ${BASE_DIR}/build
 
 ENVOY_DEV_IMAGE=${1}
 
-CMD="-c 'CC=clang CXX=clang++ bazel --output_user_root=/build/ build //:envoy'"
+CMD="-c 'PATH=/opt/llvm/bin:\$PATH CC=clang CXX=clang++ \
+		bazel --output_user_root=/build/ build //:envoy'"
 
 OPTIND=2
 while getopts "i" opt; do
@@ -28,5 +29,5 @@ docker run \
            groupadd --gid $(id -g) envoy
            useradd --uid $(id -u) --gid $(id -g) \
                    --no-create-home --home-dir=/envoy envoy
-           su -s /bin/bash envoy ${CMD}
+           su -s /bin/bash envoy $CMD
        "
