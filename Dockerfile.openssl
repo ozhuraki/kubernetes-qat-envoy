@@ -23,7 +23,7 @@ RUN if [[ "${BASE_IMAGE}" =~ clearlinux ]]; then \
             devpkg-systemd \
             devpkg-openssl \
         ; \
-    elif [[ "${BASE_IMAGE}" =~ (ubuntu:(bionic|focal)|debian:stable) ]]; then \
+    elif [[ "${BASE_IMAGE}" =~ (ubuntu:(bionic|focal|18.04|20.04)|debian:stable) ]]; then \
         apt-get update && \
         DEBIAN_FRONTEND=noninteractive apt-get install \
                                            -y --no-install-recommends \
